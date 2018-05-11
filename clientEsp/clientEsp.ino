@@ -1,7 +1,7 @@
-#include "Bil396_OLED.h"
+//#include "Bil396_OLED.h"
 
-#define CONNECT_AP "AT+CWJAP=\"TurkTelekom_T4A6A\",\"JY7s22vx\""
-#define START_SOCKET "AT+CIPSTART=\"TCP\",\"192.168.1.111\",8081"
+#define CONNECT_AP "AT+CWJAP=\"AndroidAP123\",\"botf6654\""
+#define START_SOCKET "AT+CIPSTART=\"TCP\",\"192.168.43.225\",8081"
 
 #define DISCONNECT 0
 #define CONNECT 1
@@ -9,6 +9,7 @@
 #define DEBUG 0
 #define SIZE_X 10
 #define SIZE_Y 10
+#define MAXSIZE 100
 
 typedef enum DIRECTION {
     UP,
@@ -17,7 +18,15 @@ typedef enum DIRECTION {
     LEFT
 };
 
-String msg = "";
+typedef enum GAMESTATE{
+  DRAW_M,
+  MOVE_M,
+  GAMEOVER_M,
+  FINISH_M,
+  WAIT_FOR_DRAWING_M
+};
+
+
 
 const uint8_t PROGMEM xPin = A0; // A0-A5 analog pinlerinden herhangi birine bağlanabilir.
 const uint8_t PROGMEM yPin = A1; // A0-A5 analog pinlerinden herhangi birine bağlanabilir.
@@ -28,6 +37,8 @@ uint16_t xPozisyonu = 0;
 uint16_t yPozisyonu = 0;
 uint8_t butonDurum = 0;
 
+
+
 //int loopCounter = 0;
 uint8_t isCursorActive = 0;
 uint8_t x=0;
@@ -36,123 +47,110 @@ char board[10][10];
 
 DIRECTION direction;
 
+GAMESTATE gameState;
+
+String serialResponse = "";
+
 
 void setup() {
 
-  initialize();//Serial.begin(115200);
+  Serial.begin(115200);
+
+  //initialize();//Serial.begin(115200);
 
   pinMode(xPin, INPUT);
   pinMode(yPin, INPUT);
   pinMode(butonPin, INPUT_PULLUP);
-
   
-
   setupEsp();
 
   board[0][0] = 'X';
-  clearDisplay();
+  //clearDisplay();
 }
 
 void loop() {
-  clearDisplay();
+  //clearDisplay();
   
   xPozisyonu = analogRead(xPin);
   yPozisyonu = analogRead(yPin);
   butonDurum = digitalRead(butonPin);
 
-  if(connectStatus == CONNECT){
+  if(connectStatus != CONNECT){
 
-    if(xPozisyonu > 900){//Sağ
-      sendServer('1');
-    }
-  
-  else if(xPozisyonu < 125){//Sol
-      sendServer('2');
-    }
-  
-  else if(yPozisyonu > 900){//Yukarı
-      sendServer('3');
-    }
-  
-  else if(yPozisyonu < 125){//Asagi
-      sendServer('4');
-    }
-  
-  else if(butonDurum == 0){//Secme butonu
-      sendServer('5');
-    }
+    connectToServer();
+    
   }
+  else{
 
-  if(Serial.available()>0){    
+    if(Serial.available()>0){    
+    
+      if(Serial.find("+IPD,")){
+        String msg = "";
+        uint8_t i = 0;
+        msg = Serial.readString();
+        uint8_t cutIndex = msg.indexOf(':');
+        msg = msg.substring(cutIndex+1);
+        char buf[MAXSIZE];
+        msg.toCharArray(buf,sizeof(buf));
+        char *p = buf;
+        char *str;
+        String data[MAXSIZE];
+        while ((str = strtok_r(p, ",", &p)) != NULL){
+          data[i] = str;
+          Serial.println(data[i]);
+          i++;
+        }
   
-    if(Serial.find(F("+IPD,"))){
-      msg = Serial.readString();
-      uint8_t cutIndex = msg.indexOf(':');
-      msg = msg.substring(cutIndex+1);
-      //Serial.println(F(msg));
-      //testscrolltext(msg);
-      if(msg[0] == 'O' && msg[1] == 'K'){
-        if (msg[3] == '1'){
-          if(DEBUG)
-            Serial.println(F("RIGHT"));
-          direction = RIGHT;
-          if(y<SIZE_Y-1)
-            board[x][++y] = 'X';      
+        if(data[0] == "WAIT_FOR_DRAWING"){
+          gameState = WAIT_FOR_DRAWING_M;
         }
-        else if (msg[3] == '2'){
-          if(DEBUG)
-            Serial.println(F("LEFT"));
-        direction = LEFT; 
-        if(y>0)
-          board[x][--y] = 'X';      
+        else if(data[0] == "Drawing"){
+          gameState = DRAW_M;
         }
-        else if (msg[3] == '3'){
-          if(DEBUG)
-            Serial.println(F("UP"));
-        direction = UP;
-        if(x>0)
-          board[--x][y] = 'X';      
+        else if(data[0] == "Moving"){
+          gameState = MOVE_M;
         }
-        else if (msg[3] == '4'){
-          if(DEBUG)
-            Serial.println(F("DOWN"));
-        direction = DOWN;
-        if(x<SIZE_X-1)
-        board[++x][y] = 'X';
-        }
-       }
-    }
-  } 
-
- board[x][y] = 'O';
-  displayBoard(SIZE_X, SIZE_Y, board, 'X', x, y, isCursorActive);
-  board[x][y] = 'X';
-  if(isCursorActive) {
-    isCursorActive = 0;
-  } else {
-    isCursorActive = 1;
-  }
-  
-  delay(200);
-  /*Serial.println(F("AT+CIPSTATUS"));
-
-  //delay(150);
-
-  if(Serial.find("STATUS:")){
-    msg = Serial.readString();
-    if(msg[0] != '3'){
-      if(connectToServer()){
-        Serial.println("AT+CIPSEND=9");
-        delay(400);
-        Serial.println("Connect," + (String)id);
       }
-      else
-        connectStatus = DISCONNECT;
     }
-    else if (msg[0] == '3'){
-      connectStatus = CONNECT;
+    if(gameState == DRAW_M){
+
+      doAction(xPozisyonu,yPozisyonu,gameState);
+      
     }
-  }*/
+    else if(gameState == MOVE_M){
+      doAction(xPozisyonu,yPozisyonu,gameState);
+    }
+  }
+  
+   /*board[x][y] = 'O';
+    displayBoard(SIZE_X, SIZE_Y, board, 'X', x, y, isCursorActive);
+    board[x][y] = 'X';
+    if(isCursorActive) {
+      isCursorActive = 0;
+    } else {
+      isCursorActive = 1;
+    }*/
+    
+    delay(200);
+    /*Serial.println(F("AT+CIPSTATUS"));
+  
+    //delay(150);
+  
+    if(Serial.find("STATUS:")){
+      msg = Serial.readString();
+      if(msg[0] != '3'){
+        if(connectToServer()){
+          Serial.println("AT+CIPSEND=9");
+          delay(400);
+          Serial.println("Reconnect," + (String)id);
+        }
+        else
+          connectStatus = DISCONNECT;
+      }
+      else if (msg[0] == '3'){
+        connectStatus = CONNECT;
+      }
+    }*/
 }
 
 
@@ -176,8 +174,39 @@ bool connectToServer(){
   return false;
 }
 
-void sendServer(char data){
-  Serial.println(F("AT+CIPSEND=1"));
+void doAction(uint16_t xPoz, uint16_t yPoz, GAMESTATE state){
+  if(state == DRAW_M){
+    if(xPoz > 900){//Sağ
+        sendServer("Draw,1",6);
+    }
+    else if(xPoz < 125){//Sol
+      sendServer("Draw,2",6);
+    }
+    else if(yPoz > 900){//Yukarı
+      sendServer("Draw,3",6);
+    }
+    else if(yPoz < 125){//Asagi
+      sendServer("Draw,4",6);
+    }
+  }
+  else if(state == MOVE_M){
+    if(xPoz > 900){//Sağ
+        sendServer("Move,1",6);
+    }
+    else if(xPoz < 125){//Sol
+      sendServer("Move,2",6);
+    }
+    else if(yPoz > 900){//Yukarı
+      sendServer("Move,3",6);
+    }
+    else if(yPoz < 125){//Asagi
+      sendServer("Move,4",6);
+    }
+  }
+}
+
+void sendServer(String data,int len){
+  Serial.println("AT+CIPSEND=6");
   delay(400);
   Serial.println(data);
 }
@@ -210,4 +239,3 @@ void setupEsp(){
     connectStatus = CONNECT;
   }
 }
-
