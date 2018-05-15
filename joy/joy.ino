@@ -1,5 +1,5 @@
-#define CONNECT_AP "AT+CWJAP=\"AndroidAP123\",\"botf6654\""
-#define START_SOCKET "AT+CIPSTART=\"TCP\",\"192.168.43.225\",8081"
+#define CONNECT_AP "AT+CWJAP=\"TurkTelekom_T4A6A\",\"JY7s22vx\""
+#define START_SOCKET "AT+CIPSTART=\"TCP\",\"192.168.1.111\",8081"
 
 #define DISCONNECT 0
 #define CONNECT 1

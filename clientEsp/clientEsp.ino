@@ -1,7 +1,7 @@
 //#include "Bil396_OLED.h"
 
-#define CONNECT_AP "AT+CWJAP=\"GOZTEPE\",\"hasan3545\""
-#define START_SOCKET "AT+CIPSTART=\"TCP\",\"192.168.1.26\",8081"
+#define CONNECT_AP "AT+CWJAP=\"TurkTelekom_T4A6A\",\"JY7s22vx\""
+#define START_SOCKET "AT+CIPSTART=\"TCP\",\"192.168.1.111\",8081"
 
 #define DISCONNECT 0
 #define ISCONNECT 1
@@ -54,7 +54,7 @@ uint16_t yPozisyonu = 0;
 uint8_t butonDurum = 0;
 
 unsigned long preTime = 0;
-uint8_t interval = 200;
+uint8_t interval = 175;
 
 
 
@@ -73,7 +73,7 @@ void setup() {
 
   Serial.begin(115200);
 
-  Serial.setTimeout(75);
+  Serial.setTimeout(50);
 
   //initialize();//Serial.begin(115200);
 
@@ -106,7 +106,7 @@ void loop() {
       if(Serial.find("+IPD,")){
         String msg = "";
         uint8_t i = 0;
-        msg = Serial.readStringUntil(',');
+        msg = Serial.readString();
         uint8_t cutIndex = msg.indexOf(':');
         msg = msg.substring(cutIndex+1);
         Serial.println(msg);
