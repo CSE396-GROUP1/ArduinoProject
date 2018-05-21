@@ -1,8 +1,15 @@
-#define CONNECT_AP "AT+CWJAP=\"TurkTelekom_T4A6A\",\"JY7s22vx\""
-#define START_SOCKET "AT+CIPSTART=\"TCP\",\"192.168.1.111\",8081"
+#include <Maze.h> 
 
-#define DISCONNECT 0
-#define CONNECT 1
+using namespace DisplaySetup;
+using namespace DisplayOperation;
+using namespace BoardOperation;
+using namespace StateOperation;
+using namespace Test;
+
+char board[ROW][COL];             
+int16_t cursorXPosition = 11;
+int16_t cursorYPosition = 0;
+int8_t isCursorActive = 1;
 
 const uint8_t PROGMEM xPin = A0; // A0-A5 analog pinlerinden herhangi birine bağlanabilir.
 const uint8_t PROGMEM yPin = A1; // A0-A5 analog pinlerinden herhangi birine bağlanabilir.
@@ -20,29 +27,31 @@ void setup() {
   Serial.begin(115200);
   Serial.setTimeout(75);
 
+  initialize();
+
   pinMode(xPin, INPUT);
   pinMode(yPin, INPUT);
   pinMode(butonPin, INPUT_PULLUP);
 
-  setupEsp();
+  
+  
+  initializeBoard(board);
+  refreshBoard();
+
+
+  //setupEsp();
 }
 
 void loop() {
-  if(connectStatus != CONNECT){
-      connectToServer();
-  }
 
-  
-
-  if(Serial.available()>0){
-      if(Serial.find("+IPD,")){
-        Serial.println(Serial.readStringUntil(','));
-      }
-  }
+  refreshBoard();
       
   xPozisyonu = analogRead(xPin);
   yPozisyonu = analogRead(yPin);
   butonDurum = digitalRead(butonPin);
+
+  Serial.print("Xpos:");
+  Serial.println(cursorXPosition);
 
   unsigned long curr_time = millis();
   if(abs(curr_time - pre_time) >= interval)
@@ -51,61 +60,72 @@ void loop() {
 
     if(xPozisyonu > 900){//Sağ
       Serial.println("Sag");
+      goRight(board, &cursorXPosition, &cursorYPosition); 
     }
     else if(xPozisyonu < 125){//Sol
       Serial.println("Sol");
+      goLeft(board, &cursorXPosition, &cursorYPosition); 
     }
     else if(yPozisyonu > 900){//Yukarı
       Serial.println("Yukari");
-      Serial.println("AT+CIPSEND=5");
-      delay(50);
-      Serial.println("83dad");      
+      goUp(board, &cursorXPosition, &cursorYPosition); 
     }
     else if(yPozisyonu < 125){//Asagi
       Serial.println("Asagi");
+      goDown(board, &cursorXPosition, &cursorYPosition); 
     }
   }
 }
 
-bool connectToServer(){
-  while(!Serial.find("CONNECT")){
-    Serial.println(F(START_SOCKET));
-    delay(3000);
-    if(Serial.find("CONNECT")){
-      return true;
-    }
-  }
-  return false;
-} 
+void refreshBoard(){
 
-void setupEsp(){
-  Serial.println(F("AT"));
+  displayBoard(board, cursorXPosition, cursorYPosition, isCursorActive);
     
-  delay(3000);
-   
-  while(!Serial.find("OK")){ 
-    Serial.println(F("AT"));
-    delay(3000);
-  }
+  changeCursorState(&isCursorActive);
   
-  Serial.println(F("AT+CWMODE=1"));
-  delay(2000);
+  displayBoard(board, cursorXPosition, cursorYPosition, isCursorActive);
   
-  Serial.println(F(CONNECT_AP));
-  delay(5000);
-
-  while(!Serial.find("OK")){ 
-    Serial.println(F(CONNECT_AP));
-    delay(3000);
-  }
-
-  if(connectToServer()){
-    Serial.println(F("AT+CIPSEND=9"));
-    delay(400);
-    Serial.println(F("Connect,0"));
-    connectStatus = CONNECT;
-  }
 }
+//
+//bool connectToServer(){
+//  while(!Serial.find("CONNECT")){
+//    Serial.println(F(START_SOCKET));
+//    delay(3000);
+//    if(Serial.find("CONNECT")){
+//      return true;
+//    }
+//  }
+//  return false;
+//} 
+
+//void setupEsp(){
+//  Serial.println(F("AT"));
+//    
+//  delay(3000);
+//   
+//  while(!Serial.find("OK")){ 
+//    Serial.println(F("AT"));
+//    delay(3000);
+//  }
+//  
+//  Serial.println(F("AT+CWMODE=1"));
+//  delay(2000);
+//  
+//  Serial.println(F(CONNECT_AP));
+//  delay(5000);
+//
+//  while(!Serial.find("OK")){ 
+//    Serial.println(F(CONNECT_AP));
+//    delay(3000);
+//  }
+//
+//  if(connectToServer()){
+//    Serial.println(F("AT+CIPSEND=9"));
+//    delay(400);
+//    Serial.println(F("Connect,0"));
+//    connectStatus = CONNECT;
+//  }
+//}
 
 String readSocket()
 {
