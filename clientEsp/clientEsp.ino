@@ -12,8 +12,6 @@ using namespace Test;
 #define ISCONNECT 1
 
 #define DEBUG 0
-#define SIZE_X 10
-#define SIZE_Y 10
 
 #define FAIL '0'
 #define SUCCESS '1'
@@ -32,17 +30,6 @@ using namespace Test;
 #define U '3'
 #define D '4'
 
-char board[SIZE_X][SIZE_Y] = {  
-                      {'O','O','O','O','O'},
-                      {'O','O','O','O','O'},
-                      {'O','O','O','O','O'},
-                      {'O','O','O','O','O'},
-                      {'O','O','O','O','O'}
-                   };
-                   
-uint16_t cursorXPosition = 0;
-uint16_t cursorYPosition = 0;
-
 typedef enum GAMESTATE{
   DRAW_M,
   MOVE_M,
@@ -54,7 +41,10 @@ typedef enum GAMESTATE{
   NEWGAME_M
 };
 
-
+char board[ROW][COL];             
+int16_t cursorXPosition = 11;
+int16_t cursorYPosition = 0;
+int8_t isCursorActive = 1;
 
 const uint8_t PROGMEM xPin = A0; // A0-A5 analog pinlerinden herhangi birine bağlanabilir.
 const uint8_t PROGMEM yPin = A1; // A0-A5 analog pinlerinden herhangi birine bağlanabilir.
@@ -66,19 +56,23 @@ uint16_t yPozisyonu = 0;
 uint8_t butonDurum = 0;
 
 unsigned long preTime = 0;
-uint8_t interval = 175;
+uint8_t interval = 185;
+
+bool sendStatus = true;
 
 GAMESTATE gameState;
 
 
 void setup() {
-  initialize();
 
   Serial.begin(115200);
 
   Serial.setTimeout(50);
 
-  displayBoard(SIZE_X,SIZE_Y,board,'O',cursorXPosition,cursorYPosition,1);
+  initialize();
+  initializeBoard(board);
+  refreshBoard();
+  
 
   pinMode(xPin, INPUT);
   pinMode(yPin, INPUT);
@@ -88,6 +82,8 @@ void setup() {
 }
 
 void loop() {
+
+  refreshBoard();
   
   xPozisyonu = analogRead(xPin);
   yPozisyonu = analogRead(yPin);
@@ -126,34 +122,40 @@ void loop() {
         else if(msg[0] == FINISHING){
           gameState = FINISH_M;
         }
+        else if(msg[0] == GAMEOVER){
+          gameState = MOVE_M;
+          clearBoard(board);
+        }
         else if(msg[0] == NEWGAME){
           gameState = RESTART_M;
           clearBoard(board);
-          
+        }
+        else if(msg[0] == SUCCESS){
+          sendStatus = false;
+          if(gameState == DRAW_M || gameState == MOVE_M)
+            moveOnLed(msg[1]);
         }
       }
     }
-    if(gameState == DRAW_M){
 
-      doAction(xPozisyonu,yPozisyonu,gameState);
-      
+    if(gameState == DRAW_M || gameState == MOVE_M){
+      if(sendStatus)
+        doAction(xPozisyonu,yPozisyonu,gameState);
     }
-    else if(gameState == MOVE_M){
-      doAction(xPozisyonu,yPozisyonu,gameState);
-    }
-    else if(gameState == FINISH_M){
-      doAction(butonDurum,0,gameState);
+    
+    if(gameState == FINISH_M){
+      if(sendStatus)
+        doAction(butonDurum,0,gameState);
     }
     else if(gameState == RESTART_M){
       gameState = DRAW_M;
-      
     }
     /*else if(gameState == NEWGAME_M){
       gameState = DRAW_M;
       //board sifirlanacak!!!
     }*/
   }
-  displayBoard(SIZE_X,SIZE_Y,board,'X',cursorXPosition,cursorYPosition,1); 
+  sendStatus = true;
 }
 
 bool connectToServer(){
@@ -167,16 +169,32 @@ bool connectToServer(){
   return false;
 }
 
-void clearBoard(char board[][SIZE_Y]){
-  cursorXPosition = 0;
+void clearBoard(char board[][COL]){
+  cursorXPosition = ROW-1;
   cursorYPosition = 0;
   
-  for(uint8_t i = 0; i<SIZE_X; i++){
-    for(uint8_t j=0; j<SIZE_Y; j++){
+  for(uint8_t i = 0; i<ROW; i++){
+    for(uint8_t j=0; j<COL; j++){
 
         board[i][j] = 'O';
       
     }
+  }
+  board[ROW - 1][0] = 'X';
+}
+
+void moveOnLed(char direct){
+  if(direct == R){
+    goRight(board, &cursorXPosition, &cursorYPosition);
+  }
+  else if(direct == L){
+    goLeft(board, &cursorXPosition, &cursorYPosition);
+  }
+  else if(direct == U){
+    goUp(board, &cursorXPosition, &cursorYPosition); 
+  }
+  else if(direct == D){
+    goDown(board, &cursorXPosition, &cursorYPosition); 
   }
 }
 
@@ -190,25 +208,29 @@ void doAction(uint16_t xPoz, uint16_t yPoz, GAMESTATE state){
         result += DRAWING;
         result += R;
         sendServer(result);
-        goRight(board, &cursorXPosition, &cursorYPosition, 'X');
+        //goRight(board, &cursorXPosition, &cursorYPosition);
+        
     }
     else if(xPoz < 125){//Sol
       result += DRAWING;
       result += L;
       sendServer(result);
-      goLeft(board, &cursorXPosition, &cursorYPosition, 'X');
+      //goLeft(board, &cursorXPosition, &cursorYPosition);
+      
     }
     else if(yPoz > 900){//Yukarı
       result += DRAWING;
       result += U;
       sendServer(result);
-      goUp(board, &cursorXPosition, &cursorYPosition, 'X'); 
+      //goUp(board, &cursorXPosition, &cursorYPosition);
+      
     }
     else if(yPoz < 125){//Asagi
       result += DRAWING;
       result += D;
       sendServer(result);
-      goDown(board, &cursorXPosition, &cursorYPosition, 'X'); 
+      //goDown(board, &cursorXPosition, &cursorYPosition);
+      
     }
   }
   else if(state == MOVE_M){
@@ -216,25 +238,25 @@ void doAction(uint16_t xPoz, uint16_t yPoz, GAMESTATE state){
         result += MOVING;
         result += R;
         sendServer(result);
-        goRight(board, &cursorXPosition, &cursorYPosition, 'X');
+        //goRight(board, &cursorXPosition, &cursorYPosition);
     }
     else if(xPoz < 125){//Sol
       result += MOVING;
       result += L;
       sendServer(result);
-      goLeft(board, &cursorXPosition, &cursorYPosition, 'X');
+      //goLeft(board, &cursorXPosition, &cursorYPosition);
     }
     else if(yPoz > 900){//Yukarı
       result += MOVING;
       result += U;
       sendServer(result);
-      goUp(board, &cursorXPosition, &cursorYPosition, 'X'); 
+      //goUp(board, &cursorXPosition, &cursorYPosition);
     }
     else if(yPoz < 125){//Asagi
       result += MOVING;
       result += D;
       sendServer(result);
-      goDown(board, &cursorXPosition, &cursorYPosition, 'X');
+      //goDown(board, &cursorXPosition, &cursorYPosition);
     }
   }
   else if(state = FINISH_M){
@@ -245,6 +267,17 @@ void doAction(uint16_t xPoz, uint16_t yPoz, GAMESTATE state){
   }
  }
 }
+
+void refreshBoard(){
+
+  displayBoard(board, cursorXPosition, cursorYPosition, isCursorActive);
+    
+  changeCursorState(&isCursorActive);
+  
+  displayBoard(board, cursorXPosition, cursorYPosition, isCursorActive);
+  
+}
+
 
 void sendServer(String data){
   Serial.println("AT+CIPSEND=2");
