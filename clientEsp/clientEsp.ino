@@ -6,8 +6,8 @@ using namespace BoardOperation;
 using namespace StateOperation;
 using namespace Test;
 
-#define CONNECT_AP "AT+CWJAP=\"GOZTEPE\",\"hasan3545\""
-#define START_SOCKET "AT+CIPSTART=\"TCP\",\"192.168.1.26\",8081"
+#define CONNECT_AP "AT+CWJAP=\"AndroidAP123\",\"botf6654\""
+#define START_SOCKET "AT+CIPSTART=\"TCP\",\"192.168.43.225\",8081"
 
 #define ISCONNECT 1
 
@@ -59,6 +59,7 @@ unsigned long preTime = 0;
 uint8_t interval = 185;
 
 bool sendStatus = true;
+bool joyStat = false;
 
 GAMESTATE gameState;
 
@@ -82,9 +83,6 @@ void setup() {
 }
 
 void loop() {
-
-  refreshBoard();
-  
   xPozisyonu = analogRead(xPin);
   yPozisyonu = analogRead(yPin);
   butonDurum = digitalRead(butonPin);
@@ -117,23 +115,36 @@ void loop() {
         }
         else if(msg[0] == MOVING){
           gameState = MOVE_M;
+          sendStatus = true;
           clearBoard(board);
+          refreshBoard();
         }
         else if(msg[0] == FINISHING){
           gameState = FINISH_M;
+          moveOnLed(U);
+          refreshBoard();
+          sendStatus = true;
         }
         else if(msg[0] == GAMEOVER){
           gameState = MOVE_M;
+          sendStatus = true;
           clearBoard(board);
+          refreshBoard();
         }
         else if(msg[0] == NEWGAME){
           gameState = RESTART_M;
+          sendStatus = true;
           clearBoard(board);
+          refreshBoard();
         }
         else if(msg[0] == SUCCESS){
-          sendStatus = false;
-          if(gameState == DRAW_M || gameState == MOVE_M)
-            moveOnLed(msg[1]);
+          if(gameState == DRAW_M || gameState == MOVE_M){
+            if(!sendStatus){
+              moveOnLed(msg[1]);
+              refreshBoard();
+              sendStatus = true;
+            }
+          }
         }
       }
     }
@@ -144,7 +155,6 @@ void loop() {
     }
     
     if(gameState == FINISH_M){
-      if(sendStatus)
         doAction(butonDurum,0,gameState);
     }
     else if(gameState == RESTART_M){
@@ -155,7 +165,9 @@ void loop() {
       //board sifirlanacak!!!
     }*/
   }
-  sendStatus = true;
+  /*Serial.print("sendstatus : ");
+  Serial.println(sendStatus);
+  */
 }
 
 bool connectToServer(){
@@ -202,79 +214,106 @@ void doAction(uint16_t xPoz, uint16_t yPoz, GAMESTATE state){
  unsigned long currentTime = millis();
  String result =  "";
  if(abs(currentTime - preTime) >= interval){
-  preTime = currentTime;
-  if(state == DRAW_M){
-    if(xPoz > 900){//Sağ
+  //preTime = currentTime;
+  if(!joyStat){
+
+    if(state == DRAW_M){
+      if(xPoz > 900){//Sağ
+          result += DRAWING;
+          result += R;
+          sendServer(result);
+          joyStat = true;
+          sendStatus = false;
+          //goRight(board, &cursorXPosition, &cursorYPosition);
+          
+        }
+      else if(xPoz < 125){//Sol
         result += DRAWING;
-        result += R;
+        result += L;
         sendServer(result);
-        //goRight(board, &cursorXPosition, &cursorYPosition);
+        joyStat = true;
+        sendStatus = false;
+        //goLeft(board, &cursorXPosition, &cursorYPosition);
         
-    }
-    else if(xPoz < 125){//Sol
-      result += DRAWING;
-      result += L;
-      sendServer(result);
-      //goLeft(board, &cursorXPosition, &cursorYPosition);
-      
-    }
-    else if(yPoz > 900){//Yukarı
-      result += DRAWING;
-      result += U;
-      sendServer(result);
-      //goUp(board, &cursorXPosition, &cursorYPosition);
-      
-    }
-    else if(yPoz < 125){//Asagi
-      result += DRAWING;
-      result += D;
-      sendServer(result);
-      //goDown(board, &cursorXPosition, &cursorYPosition);
-      
-    }
-  }
-  else if(state == MOVE_M){
-    if(xPoz > 900){//Sağ
-        result += MOVING;
-        result += R;
+        }
+      else if(yPoz > 900){//Yukarı
+        result += DRAWING;
+        result += U;
         sendServer(result);
-        //goRight(board, &cursorXPosition, &cursorYPosition);
+        joyStat = true;
+        sendStatus = false;
+        //goUp(board, &cursorXPosition, &cursorYPosition);
+        
+        }
+      else if(yPoz < 125){//Asagi
+        result += DRAWING;
+        result += D;
+        sendServer(result);
+        joyStat = true;
+        sendStatus = false;
+        //goDown(board, &cursorXPosition, &cursorYPosition);
+        
+        }
     }
-    else if(xPoz < 125){//Sol
-      result += MOVING;
-      result += L;
-      sendServer(result);
-      //goLeft(board, &cursorXPosition, &cursorYPosition);
-    }
-    else if(yPoz > 900){//Yukarı
-      result += MOVING;
-      result += U;
-      sendServer(result);
-      //goUp(board, &cursorXPosition, &cursorYPosition);
-    }
-    else if(yPoz < 125){//Asagi
-      result += MOVING;
-      result += D;
-      sendServer(result);
-      //goDown(board, &cursorXPosition, &cursorYPosition);
-    }
+    else if(state == MOVE_M){
+      if(xPoz > 900){//Sağ
+          result += MOVING;
+          result += R;
+          sendServer(result);
+          joyStat = true;
+          sendStatus = false;
+          //goRight(board, &cursorXPosition, &cursorYPosition);
+      }
+      else if(xPoz < 125){//Sol
+        result += MOVING;
+        result += L;
+        sendServer(result);
+        joyStat = true;
+        sendStatus = false;
+        //goLeft(board, &cursorXPosition, &cursorYPosition);
+      }
+      else if(yPoz > 900){//Yukarı
+        result += MOVING;
+        result += U;
+        sendServer(result);
+        joyStat = true;
+        sendStatus = false;
+        //goUp(board, &cursorXPosition, &cursorYPosition);
+      }
+      else if(yPoz < 125){//Asagi
+        result += MOVING;
+        result += D;
+        sendServer(result);
+        joyStat = true;
+        sendStatus = false;
+        //goDown(board, &cursorXPosition, &cursorYPosition);
+      }
+    } 
   }
-  else if(state = FINISH_M){
-    if(xPoz == 0){
-      result += RESTARTING;
-      sendServer(result);
-    }
+  else{
+    if (475 <= xPoz && xPoz <= 550 && 475 <= yPoz && yPoz <= 550)
+      joyStat = false;
   }
+
+    if(state = FINISH_M){
+      if(xPoz == 0){
+        result += RESTARTING;
+        sendServer(result);
+        joyStat = true;
+      }
+  }
+
  }
+  
 }
 
 void refreshBoard(){
 
   displayBoard(board, cursorXPosition, cursorYPosition, isCursorActive);
     
-  changeCursorState(&isCursorActive);
+  //changeCursorState(&isCursorActive);
   
-  displayBoard(board, cursorXPosition, cursorYPosition, isCursorActive);
+  //displayBoard(board, cursorXPosition, cursorYPosition, isCursorActive);
   
 }
 
@@ -311,7 +350,7 @@ void setupEsp(){
     Serial.println(F("AT+CIPSEND=2"));
     delay(400);
     result += CONNECT;
-    result += '0';
+    result += '1';
     Serial.println(result);
     connectStatus = ISCONNECT;
   }
