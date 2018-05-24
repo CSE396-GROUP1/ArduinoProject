@@ -68,19 +68,24 @@ void setup() {
 
   Serial.begin(115200);
 
-  Serial.setTimeout(50);
+  Serial.setTimeout(5);
 
   initialize();
   initializeBoard(board);
-  refreshBoard();
-  
+
+
+  led_display(F("Welcome"), 500);
 
   pinMode(xPin, INPUT);
   pinMode(yPin, INPUT);
   pinMode(butonPin, INPUT_PULLUP);
+
   
+  led_display(F("Connecting Wifi..."), 1);
   setupEsp();
+  led_display(F("Connected"), 250);
 }
+
 
 void loop() {
   xPozisyonu = analogRead(xPin);
@@ -88,9 +93,10 @@ void loop() {
   butonDurum = digitalRead(butonPin);
 
   if(connectStatus != ISCONNECT){
-
+    led_display(F("Connecting Server..."), 1);
     connectToServer();
-    
+    led_display(F("Connected Server..."), 1);
+    led_display(F("Wait for Other..."),1);
   }
   else{
 
@@ -106,14 +112,19 @@ void loop() {
   
         if(msg[0] == WAIT_FOR_DRAWING){
           gameState = WAIT_FOR_DRAWING_M;
+          led_display(F("Wait for other"), 0);
         }
         else if(msg[0] == DRAWING){
+          led_display(F("Draw a path"), 0);
+          refreshBoard();
           gameState = DRAW_M;
         }
         else if(msg[0] == WAIT_FOR_MOVING){
+          led_display(F("Wait for other"), 0);
           gameState = WAIT_FOR_MOVING_M;
         }
         else if(msg[0] == MOVING){
+          led_display(F("Start moving"), 0);
           gameState = MOVE_M;
           sendStatus = true;
           clearBoard(board);
@@ -123,6 +134,11 @@ void loop() {
           gameState = FINISH_M;
           moveOnLed(U);
           refreshBoard();
+          if(msg[1] == '1')
+            led_display(F("You won!! :)"), 100);
+          else if(msg[1] == '0')
+            led_display(F("You lost!! :("), 100);
+          led_display(F("Press button to restart"), 0);            
           sendStatus = true;
         }
         else if(msg[0] == GAMEOVER){
@@ -132,6 +148,7 @@ void loop() {
           refreshBoard();
         }
         else if(msg[0] == NEWGAME){
+          led_display(F("Draw a path"), 0);
           gameState = RESTART_M;
           sendStatus = true;
           clearBoard(board);
@@ -155,6 +172,7 @@ void loop() {
     }
     
     if(gameState == FINISH_M){
+      if(sendStatus)
         doAction(butonDurum,0,gameState);
     }
     else if(gameState == RESTART_M){
@@ -300,6 +318,7 @@ void doAction(uint16_t xPoz, uint16_t yPoz, GAMESTATE state){
         result += RESTARTING;
         sendServer(result);
         joyStat = true;
+        sendStatus = false;
       }
   }
 
@@ -350,8 +369,27 @@ void setupEsp(){
     Serial.println(F("AT+CIPSEND=2"));
     delay(400);
     result += CONNECT;
-    result += '1';
+    result += '0';
     Serial.println(result);
     connectStatus = ISCONNECT;
   }
+}
+
+void led_display(const String text, const uint16_t delayTime)
+{
+  clearDisplay();
+  splashScreen(text.c_str());
+  displayu8g2();
+  delay(delayTime);
+}
+
+String readComing(){
+  char c;
+  String res(F("0000"));
+  res = "";
+  uint8_t i = 0;
+  while((c = Serial.read()) != '\0') {
+      res[i++] = c;
+  }
+  return res;
 }
