@@ -6,8 +6,8 @@ using namespace BoardOperation;
 using namespace StateOperation;
 using namespace Test;
 
-#define CONNECT_AP "AT+CWJAP=\"AndroidAP123\",\"botf6654\""
-#define START_SOCKET "AT+CIPSTART=\"TCP\",\"192.168.43.225\",8081"
+#define CONNECT_AP "AT+CWJAP=\"GOZTEPE\",\"hasan3545\""
+#define START_SOCKET "AT+CIPSTART=\"TCP\",\"192.168.1.26\",8081"
 
 #define ISCONNECT 1
 
@@ -68,7 +68,7 @@ void setup() {
 
   Serial.begin(115200);
 
-  Serial.setTimeout(5);
+  Serial.setTimeout(50);
 
   initialize();
   initializeBoard(board);
