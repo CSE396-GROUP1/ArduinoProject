@@ -57,7 +57,7 @@ void DisplaySetup::initialize(void)
 
 void DisplaySetup::splashScreen(const char *splashText)
 {
-    u8g2_uint_t offset = 32;
+    u8g2_uint_t offset = 64;
     u8g2_uint_t width;
     width = u8g2.getUTF8Width(splashText);
     u8g2_uint_t x;
@@ -71,8 +71,8 @@ void DisplaySetup::splashScreen(const char *splashText)
             u8g2.drawUTF8(x, 38, splashText);
             x += width;
         } while (u8g2.nextPage());
-        offset -= 1;
-        delay(1);
+        offset -= 2;
+        //delay(1);
     }
 }
 
