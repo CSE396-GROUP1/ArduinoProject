@@ -7,7 +7,7 @@ using namespace StateOperation;
 using namespace Test;
 
 #define CONNECT_AP "AT+CWJAP=\"GOZTEPE\",\"hasan3545\""
-#define START_SOCKET "AT+CIPSTART=\"TCP\",\"192.168.1.26\",8081"
+#define START_SOCKET "AT+CIPSTART=\"TCP\",\"192.168.1.24\",8081"
 
 #define ISCONNECT 1
 
@@ -100,71 +100,22 @@ void loop() {
   }
   else{
 
-    if(Serial.available()>0){    
-    
-      if(Serial.find("+IPD,")){
-        String msg = "";
-        uint8_t i = 0;
-        msg = Serial.readString();
-        uint8_t cutIndex = msg.indexOf(':');
-        msg = msg.substring(cutIndex+1);
-        Serial.println(msg);
-  
-        if(msg[0] == WAIT_FOR_DRAWING){
-          gameState = WAIT_FOR_DRAWING_M;
-          led_display(F("Wait for other"), 0);
-        }
-        else if(msg[0] == DRAWING){
-          led_display(F("Draw a path"), 0);
-          refreshBoard();
-          gameState = DRAW_M;
-        }
-        else if(msg[0] == WAIT_FOR_MOVING){
-          led_display(F("Wait for other"), 0);
-          gameState = WAIT_FOR_MOVING_M;
-        }
-        else if(msg[0] == MOVING){
-          led_display(F("Start moving"), 0);
-          gameState = MOVE_M;
-          sendStatus = true;
-          clearBoard(board);
-          refreshBoard();
-        }
-        else if(msg[0] == FINISHING){
-          gameState = FINISH_M;
-          moveOnLed(U);
-          refreshBoard();
-          if(msg[1] == '1')
-            led_display(F("You won!! :)"), 100);
-          else if(msg[1] == '0')
-            led_display(F("You lost!! :("), 100);
-          led_display(F("Press button to restart"), 0);            
-          sendStatus = true;
-        }
-        else if(msg[0] == GAMEOVER){
-          gameState = MOVE_M;
-          sendStatus = true;
-          clearBoard(board);
-          refreshBoard();
-        }
-        else if(msg[0] == NEWGAME){
-          led_display(F("Draw a path"), 0);
-          gameState = RESTART_M;
-          sendStatus = true;
-          clearBoard(board);
-          refreshBoard();
-        }
-        else if(msg[0] == SUCCESS){
-          if(gameState == DRAW_M || gameState == MOVE_M){
-            if(!sendStatus){
-              moveOnLed(msg[1]);
-              refreshBoard();
-              sendStatus = true;
-            }
-          }
-        }
-      }
+    if(Serial.available() >= 2){
+    char msg[2];
+    msg[3] = '\0';
+    if(Serial.find("+IPD,")){
+      Serial.readBytes(msg, 2);
+      Serial.readBytes(msg, 2);
+      handle(msg);
+      //led_display(msg, 0);      
     }
+    while(Serial.available() > 0){
+      Serial.readBytes(msg, 2);
+      handle(msg);
+      //led_display(msg, 0);
+    }
+    
+  }
 
     if(gameState == DRAW_M || gameState == MOVE_M){
       if(sendStatus)
@@ -173,19 +124,69 @@ void loop() {
     
     if(gameState == FINISH_M){
       if(sendStatus)
-        doAction(butonDurum,0,gameState);
+        restartGame(butonDurum,gameState);
     }
     else if(gameState == RESTART_M){
       gameState = DRAW_M;
     }
-    /*else if(gameState == NEWGAME_M){
-      gameState = DRAW_M;
-      //board sifirlanacak!!!
-    }*/
   }
-  /*Serial.print("sendstatus : ");
-  Serial.println(sendStatus);
-  */
+}
+
+void handle(const char* msg){
+
+  if(msg[0] == WAIT_FOR_DRAWING){
+    gameState = WAIT_FOR_DRAWING_M;
+    led_display(F("Wait for other"), 0);
+  }
+  else if(msg[0] == DRAWING){
+    led_display(F("Draw a path"), 0);
+    refreshBoard();
+    gameState = DRAW_M;
+  }
+  else if(msg[0] == WAIT_FOR_MOVING){
+    led_display(F("Wait for other"), 0);
+    gameState = WAIT_FOR_MOVING_M;
+  }
+  else if(msg[0] == MOVING){
+    led_display(F("Start moving"), 0);
+    gameState = MOVE_M;
+    sendStatus = true;
+    clearBoard(board);
+    refreshBoard();
+  }
+  else if(msg[0] == FINISHING){
+    gameState = FINISH_M;
+    moveOnLed(U);
+    refreshBoard();
+    if(msg[1] == '1')
+      led_display(F("You won!! :)"), 100);
+    else if(msg[1] == '0')
+        led_display(F("You lost!! :("), 100);
+      led_display(F("Press button to restart"), 0);            
+      sendStatus = true;
+  }
+  else if(msg[0] == GAMEOVER){
+    gameState = MOVE_M;
+    sendStatus = true;
+    clearBoard(board);
+    refreshBoard();
+  }
+  else if(msg[0] == NEWGAME){
+    led_display(F("Draw a path"), 0);
+    gameState = RESTART_M;
+    sendStatus = true;
+    clearBoard(board);
+    refreshBoard();
+  }
+  else if(msg[0] == SUCCESS){
+    if(gameState == DRAW_M || gameState == MOVE_M){
+      if(!sendStatus){
+        moveOnLed(msg[1]);
+        refreshBoard();
+        sendStatus = true;
+      }
+    }
+  }
 }
 
 bool connectToServer(){
@@ -313,17 +314,20 @@ void doAction(uint16_t xPoz, uint16_t yPoz, GAMESTATE state){
       joyStat = false;
   }
 
-    if(state = FINISH_M){
-      if(xPoz == 0){
-        result += RESTARTING;
-        sendServer(result);
-        joyStat = true;
-        sendStatus = false;
-      }
-  }
-
  }
   
+}
+
+void restartGame(uint8_t butStat, GAMESTATE state){
+  String result = "";
+  if(state = FINISH_M){
+    if(butStat == 0){
+      result += RESTARTING;
+      sendServer(result);
+      joyStat = true;
+      sendStatus = false;
+    }
+  }
 }
 
 void refreshBoard(){
